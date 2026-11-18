@@ -1,0 +1,1232 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>架桥谜题 · Bridges (Hashiwokakero)</title>
+<style>
+  :root{
+    --bg:#f5f6f8; --card:#fff; --ink:#1f2430; --muted:#6b7280; --line:#d7dce3;
+    --accent:#2563eb; --accent-soft:#e8f0ff; --ok:#0f9d58; --err:#e5484d; --warn:#b45309;
+    --shadow:0 1px 3px rgba(16,24,40,.08),0 8px 24px rgba(16,24,40,.06);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg);color:var(--ink);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue","PingFang SC","Microsoft YaHei",sans-serif;
+    line-height:1.5;-webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:760px;margin:0 auto;padding:20px 16px 48px}
+  header h1{font-size:22px;margin:0 0 2px;letter-spacing:.2px}
+  header p{margin:0;color:var(--muted);font-size:13px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}
+  .controls{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;padding:14px;margin:16px 0 12px}
+  .field{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
+  select,input[type=number]{
+    font:inherit;font-size:14px;color:var(--ink);background:#fff;border:1px solid var(--line);
+    border-radius:9px;padding:8px 10px;min-width:104px
+  }
+  button{
+    font:inherit;font-size:14px;cursor:pointer;border:1px solid var(--line);background:#fff;color:var(--ink);
+    border-radius:9px;padding:9px 13px;transition:.12s background,.12s border-color,.12s transform
+  }
+  button:hover{background:#f3f5f8}
+  button:active{transform:translateY(1px)}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  button.primary:hover{background:#1d4ed8}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  .toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:12px;margin-bottom:10px}
+  .chip{
+    border:1px solid var(--line);border-radius:999px;padding:7px 13px;font-size:13px;background:#fff;
+    cursor:pointer;user-select:none
+  }
+  .chip.active{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-weight:600}
+  .spacer{flex:1}
+  .boardcard{padding:10px;position:relative;overflow:hidden}
+  svg#board{display:block;width:100%;height:auto;touch-action:none;border-radius:8px;background:#fcfcfd;user-select:none}
+  .status{
+    display:flex;flex-wrap:wrap;gap:14px;align-items:center;padding:12px 14px;margin-top:10px;font-size:13px;color:var(--muted)
+  }
+  .status b{color:var(--ink);font-variant-numeric:tabular-nums}
+  .toggle{display:inline-flex;gap:6px;align-items:center;cursor:pointer;user-select:none}
+  .toggle input{accent-color:var(--accent)}
+  .banner{margin-top:12px;padding:12px 14px;border-radius:10px;background:#e7f7ee;border:1px solid #b7e4c7;color:#0b6b3a;font-weight:600}
+  .banner.hidden{display:none}
+  .banner.pop{animation:bannerPop .45s ease-out}
+  .star{color:#f59e0b;letter-spacing:1px}
+  /* feedback animations */
+  @keyframes bridgeIn{from{opacity:0;stroke-width:.004}to{opacity:1}}
+  .bridge-pop{animation:bridgeIn .2s ease-out}
+  @keyframes islandPop{0%{transform:scale(1)}45%{transform:scale(1.18)}100%{transform:scale(1)}}
+  .island-pop{transform-box:fill-box;transform-origin:center;animation:islandPop .32s ease-out}
+  @keyframes bannerPop{0%{transform:scale(.96);opacity:0}60%{transform:scale(1.02)}100%{transform:scale(1);opacity:1}}
+  .msg{margin-top:10px;padding:10px 12px;border-radius:9px;font-size:13px;display:none}
+  .msg.show{display:block}
+  .msg.err{background:#fdecec;border:1px solid #f3b6b8;color:#9b1c20}
+  .msg.ok{background:#e7f7ee;border:1px solid #b7e4c7;color:#0b6b3a}
+  .hintline{font-size:12px;color:var(--muted);margin-top:12px;padding:0 2px}
+  kbd{background:#eef1f5;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:1px 5px;font-family:inherit;font-size:11px}
+  /* History panel */
+  #historyArea{display:none}
+  .hist-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .hist-stats{display:flex;flex-wrap:wrap;gap:16px;margin:10px 0 4px;font-size:13px;color:var(--muted)}
+  .hist-stats b{color:var(--ink);font-size:16px;font-variant-numeric:tabular-nums}
+  .hist-list{margin-top:8px;max-height:420px;overflow:auto;border-top:1px solid var(--line)}
+  .hist-row{display:flex;align-items:center;gap:12px;padding:10px 4px;border-bottom:1px solid var(--line);font-size:13px;flex-wrap:wrap}
+  .hist-row .stars{color:#f59e0b;letter-spacing:1px;width:58px;flex:none}
+  .hist-row .meta{color:var(--muted);flex:1;min-width:180px}
+  .hist-row .meta b{color:var(--ink)}
+  .hist-empty{padding:24px 4px;color:var(--muted);text-align:center}
+  .hist-row button{padding:5px 10px;font-size:12px}
+  /* Print */
+  #printArea{display:none}
+  @media print{
+    body{background:#fff}
+    .wrap>*:not(#printArea){display:none!important}
+    #printArea{display:block}
+    #printArea h2{margin:0 0 4px}
+    #printArea svg{width:100%;max-width:650px}
+    .pagebreak{page-break-before:always}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>架桥谜题 · Bridges</h1>
+    <p>连接岛屿，使每座岛的桥数等于它的数字 —— Hashiwokakero</p>
+  </header>
+
+  <div class="card controls">
+    <label class="field">尺寸
+      <select id="sizeSel">
+        <option value="7">7 × 7</option>
+        <option value="9" selected>9 × 9</option>
+        <option value="11">11 × 11</option>
+        <option value="13">13 × 13</option>
+        <option value="15">15 × 15</option>
+      </select>
+    </label>
+    <label class="field">难度
+      <select id="diffSel">
+        <option value="easy">简单</option>
+        <option value="medium" selected>中等</option>
+        <option value="hard">困难</option>
+      </select>
+    </label>
+    <label class="field" title="任意非负整数，最长 10 位（32 位）。留空则随机。">种子
+      <input type="number" id="seedIn" min="0" max="4294967295" step="1" placeholder="随机" style="min-width:130px">
+    </label>
+    <button class="primary" id="newBtn">新谜题</button>
+    <button id="useSeedBtn" title="用上面输入的种子生成题目">用此种子生成</button>
+  </div>
+
+  <div class="card toolbar">
+    <span class="chip active" id="bridgeChip" title="点击/拖动连桥，每座岛的桥循环 0→1→2→0">🔗 连桥</span>
+    <span class="chip" id="eraseChip" title="擦除模式：点击桥或拖动清除">🧽 擦除</span>
+    <span class="spacer"></span>
+    <button id="undoBtn" title="撤销">↶ 撤销</button>
+    <button id="redoBtn" title="重做">↷ 重做</button>
+    <button id="hintBtn" title="显示一步提示">💡 提示</button>
+    <button id="checkBtn" title="检查当前进度">✅ 检查</button>
+    <button id="restartBtn" title="清空桥，保留题目">⟲ 重来</button>
+  </div>
+
+  <div class="card boardcard">
+    <svg id="board" viewBox="0 0 9 9" preserveAspectRatio="xMidYMid meet" aria-label="架桥谜题棋盘"></svg>
+  </div>
+
+  <div class="card status">
+    <span>用时 <b id="timeVal">0:00</b></span>
+    <span>提示 <b id="hintVal">0</b> 次</span>
+    <span>最佳 <b id="bestVal">—</b></span>
+    <label class="toggle"><input type="checkbox" id="errChk" checked> 实时显示规则错误</label>
+    <label class="toggle"><input type="checkbox" id="keyChk"> 启用键盘操作</label>
+    <label class="toggle"><input type="checkbox" id="soundChk" checked> 🔊 音效</label>
+    <span class="spacer"></span>
+    <button id="dailyBtn" title="每天一道所有人相同的题">📅 每日挑战</button>
+    <button id="historyBtn" title="查看通关记录与星级">📜 历史记录</button>
+    <button id="copyBtn" title="复制题目信息（尺寸/难度/种子），用种子可还原本题">🔗 分享题目</button>
+    <button id="printBtn" title="打印题目">🖨 打印</button>
+  </div>
+
+  <div class="banner hidden" id="banner"></div>
+  <div class="msg" id="msg"></div>
+
+  <p class="hintline">
+    操作：从岛屿拖动到同行/同列最近的岛连桥；再次操作变双桥，第三次移除。直接点击已有桥也可循环。右键擦除单条桥。<br>
+    键盘（需在上方勾选“启用键盘操作”）：<kbd>↑↓←→</kbd> 移动光标，<kbd>W/A/S/D</kbd> 向上/左/下/右连桥，<kbd>Backspace</kbd> 清除选中岛的桥。
+  </p>
+
+  <div id="historyArea"></div>
+  <input type="file" id="importFile" accept="application/json,.json" style="display:none">
+  <div id="printArea"></div>
+</div>
+
+<script>
+"use strict";
+/* ==================== ENGINE START (pure logic, no DOM) ==================== */
+function mulberry32(a){
+  a = a>>>0;
+  return function(){
+    a = (a + 0x6D2B79F5)|0;
+    let t = Math.imul(a ^ (a>>>15), 1|a);
+    t = (t + Math.imul(t ^ (t>>>7), 61|t)) ^ t;
+    return ((t ^ (t>>>14))>>>0)/4294967296;
+  };
+}
+function shuffled(arr, rng){
+  for(let i=arr.length-1;i>0;i--){ const j=Math.floor(rng()*(i+1)); const t=arr[i];arr[i]=arr[j];arr[j]=t; }
+  return arr;
+}
+function buildLayout(size, density, rng){
+  const target = Math.max(6, Math.round(size*size*density));
+  const cells=[];
+  for(let r=0;r<size;r++) for(let c=0;c<size;c++) cells.push({c,r});
+  shuffled(cells,rng);
+  return cells.slice(0,target).map(p=>({c:p.c,r:p.r}));
+}
+function computeEdges(islands){
+  const n=islands.length, edges=[];
+  for(let i=0;i<n;i++) for(let j=i+1;j<n;j++){
+    const A=islands[i], B=islands[j];
+    if(A.r===B.r){
+      const lo=Math.min(A.c,B.c), hi=Math.max(A.c,B.c);
+      let blocked=false;
+      for(let k=0;k<n;k++) if(k!==i&&k!==j&&islands[k].r===A.r&&islands[k].c>lo&&islands[k].c<hi){blocked=true;break;}
+      if(!blocked) edges.push({a:i,b:j,dir:'h',line:A.r,lo,hi,cross:[]});
+    } else if(A.c===B.c){
+      const lo=Math.min(A.r,B.r), hi=Math.max(A.r,B.r);
+      let blocked=false;
+      for(let k=0;k<n;k++) if(k!==i&&k!==j&&islands[k].c===A.c&&islands[k].r>lo&&islands[k].r<hi){blocked=true;break;}
+      if(!blocked) edges.push({a:i,b:j,dir:'v',line:A.c,lo,hi,cross:[]});
+    }
+  }
+  // A horizontal and a vertical edge cross only when the vertical's column
+  // lies strictly inside the horizontal's span AND the horizontal's row lies
+  // strictly inside the vertical's span. Skip same-orientation pairs entirely.
+  for(let hi=0;hi<edges.length;hi++){
+    const H=edges[hi];
+    if(H.dir!=='h') continue;
+    for(let vi=0;vi<edges.length;vi++){
+      const V=edges[vi];
+      if(V.dir!=='v') continue;
+      const c=V.line, r=H.line;
+      if(c>H.lo && c<H.hi && r>V.lo && r<V.hi){
+        H.cross.push(vi);
+        V.cross.push(hi);
+      }
+    }
+  }
+  return edges;
+}
+function computeDegrees(edges, weights){
+  const deg=new Array(edges.length?edges.reduce((m,e)=>Math.max(m,e.a,e.b),0)+1:0).fill(0);
+  edges.forEach((e,i)=>{ deg[e.a]+=weights[i]; deg[e.b]+=weights[i]; });
+  return deg;
+}
+function randomSolution(islands, edges, rng, cfg){
+  const n=islands.length, m=edges.length;
+  const w=new Array(m).fill(0);
+  const parent=[...Array(n).keys()];
+  function find(x){ while(parent[x]!==x){parent[x]=parent[parent[x]];x=parent[x];} return x; }
+  function union(a,b){ const ra=find(a),rb=find(b); if(ra!==rb) parent[ra]=rb; }
+  const active=[];
+  const crossesAny=ei=>edges[ei].cross.some(c=>w[c]>0);
+  for(const ei of shuffled([...Array(m).keys()],rng)){
+    const e=edges[ei];
+    if(find(e.a)===find(e.b)) continue;
+    if(crossesAny(ei)) continue;
+    w[ei]=1; active.push(ei); union(e.a,e.b);
+  }
+  for(let v=1;v<n;v++) if(find(v)!==find(0)) return null;
+  const deg=new Array(n).fill(0);
+  active.forEach(ei=>{deg[edges[ei].a]++;deg[edges[ei].b]++;});
+  for(const ei of shuffled([...Array(m).keys()],rng)){
+    const e=edges[ei];
+    if(w[ei]>0) continue;
+    if(rng()>cfg.add) continue;
+    if(crossesAny(ei)) continue;
+    const val = rng()<cfg.double ? 2 : 1;
+    if(deg[e.a]+val>8||deg[e.b]+val>8) continue;
+    w[ei]=val; active.push(ei); deg[e.a]+=val; deg[e.b]+=val;
+  }
+  for(const ei of shuffled(active.slice(),rng)){
+    if(w[ei]>=2) continue;
+    if(rng()>cfg.upgrade) continue;
+    const e=edges[ei];
+    if(deg[e.a]+1>8||deg[e.b]+1>8) continue;
+    w[ei]=2; deg[e.a]++; deg[e.b]++;
+  }
+  return w;
+}
+function needOf(v, w, inc, numbers){
+  let s=0;
+  for(const x of inc[v]) if(w[x]>=0) s+=w[x];
+  return numbers[v]-s;
+}
+function countSolutions(islands, edges, numbers, limit){
+  const n=islands.length, m=edges.length;
+  const inc=Array.from({length:n},()=>[]);
+  edges.forEach((e,i)=>{inc[e.a].push(i);inc[e.b].push(i);});
+  const cross=edges.map(e=>e.cross);
+  function recurse(w){
+    for(let iter=0;;iter++){
+      let changed=false;
+      // Crossing constraint: present edges forbid their crossing partners.
+      for(let i=0;i<m;i++){
+        if(w[i]<=0) continue;
+        for(const c of cross[i]){
+          if(w[c]>0) return 0;
+          if(w[c]===-1){ w[c]=0; changed=true; }
+        }
+      }
+      // Degree propagation.
+      for(let v=0;v<n;v++){
+        const need=needOf(v,w,inc,numbers);
+        if(need<0) return 0;
+        const rem=[];
+        for(const ei of inc[v]) if(w[ei]===-1) rem.push(ei);
+        if(need===0){
+          for(const ei of rem) if(w[ei]!==0){ w[ei]=0; changed=true; }
+          continue;
+        }
+        let cap=0; const caps={};
+        for(const ei of rem){
+          const e=edges[ei], other=e.a===v?e.b:e.a;
+          let c=Math.min(2, need, Math.max(0, needOf(other,w,inc,numbers)));
+          for(const cc of cross[ei]) if(w[cc]>0){ c=0; break; }
+          caps[ei]=c; cap+=c;
+        }
+        if(need>cap) return 0;
+        if(need===cap){
+          for(const ei of rem) if(w[ei]!==caps[ei]){ w[ei]=caps[ei]; changed=true; }
+        }
+      }
+      if(!changed) break;
+      if(iter>500) return 0;
+    }
+    // Branch on the unassigned edge with the fewest feasible values.
+    let best=-1, bestCount=99;
+    for(let i=0;i<m;i++){
+      if(w[i]!==-1) continue;
+      const e=edges[i]; let cnt=0;
+      for(const val of [2,1,0]){
+        let ok=true;
+        if(val>0) for(const c of cross[i]) if(w[c]>0){ok=false;break;}
+        if(ok) for(const v of [e.a,e.b]) if(needOf(v,w,inc,numbers)<val){ok=false;break;}
+        if(ok) cnt++;
+      }
+      if(cnt<bestCount){ bestCount=cnt; best=i; if(cnt<=1) break; }
+    }
+    if(best<0){
+      const parent=[...Array(n).keys()];
+      function find(x){ while(parent[x]!==x){parent[x]=parent[parent[x]];x=parent[x];} return x; }
+      for(let i=0;i<m;i++) if(w[i]>0){ const a=find(edges[i].a),b=find(edges[i].b); if(a!==b) parent[a]=b; }
+      const root=find(0);
+      for(let v=1;v<n;v++) if(find(v)!==root) return 0;
+      return 1;
+    }
+    let total=0;
+    for(const val of [2,1,0]){
+      const e=edges[best]; let ok=true;
+      if(val>0) for(const c of cross[best]) if(w[c]>0){ok=false;break;}
+      if(ok) for(const v of [e.a,e.b]) if(needOf(v,w,inc,numbers)<val){ok=false;break;}
+      if(!ok) continue;
+      const w2=w.slice(); w2[best]=val;
+      total+=recurse(w2);
+      if(total>=limit) break;
+    }
+    return total;
+  }
+  return recurse(new Array(m).fill(-1));
+}
+// Densities are kept moderate: sparse layouts give more forced moves, which
+// makes unique solutions far more common and generation much faster.
+const CONFIG={
+  easy:  {density:0.18, add:0.10, double:0.10, upgrade:0.03},
+  medium:{density:0.22, add:0.24, double:0.20, upgrade:0.08},
+  hard:  {density:0.28, add:0.40, double:0.30, upgrade:0.14}
+};
+// Fast solution counter with a node budget: returns -1 when the budget is
+// exhausted. Used to cheaply discard non-unique candidates before the full
+// (unbounded) check.
+function countSolutionsBudget(islands, edges, numbers, limit, budget){
+  const n=islands.length, m=edges.length;
+  const inc=Array.from({length:n},()=>[]);
+  edges.forEach((e,i)=>{inc[e.a].push(i);inc[e.b].push(i);});
+  const cross=edges.map(e=>e.cross);
+  let nodes=0;
+  function needOf(v,w){ let s=0; for(const x of inc[v]) if(w[x]>=0) s+=w[x]; return numbers[v]-s; }
+  function rec(w){
+    if(++nodes>budget) return -1;
+    for(let iter=0;;iter++){
+      let changed=false;
+      for(let i=0;i<m;i++){
+        if(w[i]<=0) continue;
+        for(const c of cross[i]){ if(w[c]>0) return 0; if(w[c]===-1){w[c]=0;changed=true;} }
+      }
+      for(let v=0;v<n;v++){
+        const need=needOf(v,w); if(need<0) return 0;
+        const rem=[]; for(const ei of inc[v]) if(w[ei]===-1) rem.push(ei);
+        if(need===0){ for(const ei of rem) if(w[ei]!==0){w[ei]=0;changed=true;} continue; }
+        let cap=0; const caps={};
+        for(const ei of rem){
+          const e=edges[ei], other=e.a===v?e.b:e.a;
+          let c=Math.min(2,need,Math.max(0,needOf(other,w)));
+          for(const cc of cross[ei]) if(w[cc]>0){c=0;break;}
+          caps[ei]=c; cap+=c;
+        }
+        if(need>cap) return 0;
+        if(need===cap) for(const ei of rem) if(w[ei]!==caps[ei]){w[ei]=caps[ei];changed=true;}
+      }
+      if(!changed) break;
+      if(iter>500) return 0;
+    }
+    let best=-1,bestCount=99;
+    for(let i=0;i<m;i++){
+      if(w[i]!==-1) continue;
+      const e=edges[i]; let cnt=0;
+      for(const val of [2,1,0]){
+        let ok=true;
+        if(val>0) for(const c of cross[i]) if(w[c]>0){ok=false;break;}
+        if(ok) for(const v of [e.a,e.b]) if(needOf(v,w)<val){ok=false;break;}
+        if(ok) cnt++;
+      }
+      if(cnt<bestCount){bestCount=cnt;best=i;if(cnt<=1)break;}
+    }
+    if(best<0){
+      const parent=[...Array(n).keys()];
+      function find(x){ while(parent[x]!==x){parent[x]=parent[parent[x]];x=parent[x];} return x; }
+      for(let i=0;i<m;i++) if(w[i]>0){const a=find(edges[i].a),b=find(edges[i].b);if(a!==b)parent[a]=b;}
+      const root=find(0);
+      for(let v=1;v<n;v++) if(find(v)!==root) return 0;
+      return 1;
+    }
+    let total=0;
+    for(const val of [2,1,0]){
+      const e=edges[best]; let ok=true;
+      if(val>0) for(const c of cross[best]) if(w[c]>0){ok=false;break;}
+      if(ok) for(const v of [e.a,e.b]) if(needOf(v,w)<val){ok=false;break;}
+      if(!ok) continue;
+      const w2=w.slice(); w2[best]=val;
+      const r=rec(w2); if(r<0) return -1;
+      total+=r; if(total>=limit) break;
+    }
+    return total;
+  }
+  return rec(new Array(m).fill(-1));
+}
+function generatePuzzle(size, difficulty, seed){
+  const cfg=CONFIG[difficulty]||CONFIG.medium;
+  const budget=size>=13?1500:4000;
+  for(let attempt=0;attempt<2000;attempt++){
+    const rng=mulberry32((seed>>>0)+attempt*2654435761);
+    const islands=buildLayout(size,cfg.density,rng);
+    const edges=computeEdges(islands);
+    if(edges.length<islands.length) continue;
+    const sol=randomSolution(islands,edges,rng,cfg);
+    if(!sol) continue;
+    const numbers=computeDegrees(edges,sol);
+    if(numbers.some(n=>n<1||n>8)) continue;
+    if(countSolutionsBudget(islands,edges,numbers,2,budget)!==1) continue;
+    if(countSolutions(islands,edges,numbers,2)!==1) continue;
+    return {size,difficulty,seed:seed>>>0,islands,edges,numbers,solution:sol};
+  }
+  return null;
+}
+/* ==================== ENGINE END ==================== */
+
+/* ==================== UI / GAME ==================== */
+const $=id=>document.getElementById(id);
+const svg=$('board');
+const NS='http://www.w3.org/2000/svg';
+let puzzle=null, bridges=[], history=[], redo=[], hintsUsed=0, cheated=false;
+// 隐藏作弊码：在页面上依次键入这些字母即可直接揭晓答案（不计成绩）。
+const CHEAT_CODE='hashi';
+let cheatBuf='';
+let mode='bridge', showErrors=true, keyboardMode=false, soundOn=true, solved=false, startTime=0, timerId=null, elapsed=0;
+let cursor=0, drag=null, messageTimer=null;
+// transient animation cues: edges/islands that just changed
+let animEdges=new Set(), animIslands=new Set();
+const META={easy:'简单',medium:'中等',hard:'困难'};
+
+/* ---------- Web Audio (no external files) ---------- */
+let audioCtx=null;
+function ac(){
+  if(!soundOn) return null;
+  try{
+    if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+    if(audioCtx.state==='suspended') audioCtx.resume();
+    return audioCtx;
+  }catch(e){ return null; }
+}
+function beep(freq,dur,type='sine',vol=0.08,delay=0){
+  const c=ac(); if(!c) return;
+  const t=c.currentTime+delay;
+  const osc=c.createOscillator(), gain=c.createGain();
+  osc.type=type; osc.frequency.setValueAtTime(freq,t);
+  gain.gain.setValueAtTime(0,t);
+  gain.gain.linearRampToValueAtTime(vol,t+0.012);
+  gain.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  osc.connect(gain); gain.connect(c.destination);
+  osc.start(t); osc.stop(t+dur+0.02);
+}
+const SFX={
+  bridge(){ beep(430,0.10,'triangle',0.07); },
+  double(){ beep(560,0.09,'triangle',0.07); beep(760,0.11,'triangle',0.06,0.07); },
+  erase(){ beep(240,0.09,'sine',0.05); },
+  complete(){ [523,659,784].forEach((f,i)=>beep(f,0.16,'sine',0.06,i*0.08)); },
+  win(){ [523,659,784,1047,1319].forEach((f,i)=>beep(f,0.32,'triangle',0.07,i*0.13)); },
+  error(){ beep(180,0.16,'sawtooth',0.04); }
+};
+
+/* ---------- Records & daily ---------- */
+const RECKEY='bridges-records';
+function records(){ try{ return JSON.parse(localStorage.getItem(RECKEY)||'{}'); }catch(e){ return {}; } }
+function recKey(size,diff,seed){ return `${size}-${diff}-${seed}`; }
+function starsFor(timeMs,hints,size,diff){
+  // Par time scales with board size and difficulty; hints cost roughly 30s each.
+  const par=({7:60,9:120,11:240,13:420,15:600})[size] || 120;
+  const dmul={easy:0.8,medium:1,hard:1.35}[diff]||1;
+  const score=timeMs/1000+hints*30;
+  if(score<=par*dmul*0.6) return 3;
+  if(score<=par*dmul) return 2;
+  return 1;
+}
+function dailySeed(){
+  const d=new Date();
+  return d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate();
+}
+function bestText(size,diff,seed){
+  const r=records()[recKey(size,diff,seed)];
+  if(!r) return '—';
+  return `${'★'.repeat(r.stars)}${'☆'.repeat(3-r.stars)} ${fmt(r.time)}`;
+}
+function updateBest(){ $('bestVal').textContent=bestText(puzzle.size,puzzle.difficulty,puzzle.seed); }
+function fmtDate(ts){
+  if(!ts) return '';
+  const d=new Date(ts);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function showHistory(){
+  const area=$('historyArea');
+  area.style.display='block';
+  renderHistory();
+  area.scrollIntoView?.({behavior:'smooth',block:'nearest'});
+}
+function renderHistory(){
+  const area=$('historyArea');
+  const all=records();
+  const items=Object.entries(all).map(([k,v])=>{
+    const [size,diff,seed]=k.split('-');
+    return {size:+size,diff,seed:+seed,...v};
+  }).filter(x=>x.stars>=1).sort((a,b)=>(b.date||0)-(a.date||0));
+  const total=items.length;
+  const starSum=items.reduce((s,x)=>s+(x.stars||0),0);
+  const solvedTime=items.reduce((s,x)=>s+(x.time||0),0);
+  const avg=total?Math.round(solvedTime/total/1000):0;
+  let html=`<div class="card" style="padding:16px;margin-top:16px">
+    <div class="hist-head"><h3 style="margin:0">📜 通关记录</h3>
+      <button id="histCloseBtn">关闭</button></div>
+    <div class="hist-stats">
+      <span>已通关 <b>${total}</b> 题</span>
+      <span>累计星星 <b>${starSum}</b> ★</span>
+      <span>平均用时 <b>${avg}s</b></span>
+    </div>
+    <div class="hist-list">`;
+  if(!items.length){
+    html+=`<div class="hist-empty">还没有通关记录。解开一局后就会出现在这里。</div>`;
+  }else{
+    for(const x of items){
+      const stars='★'.repeat(x.stars)+'☆'.repeat(3-x.stars);
+      html+=`<div class="hist-row">
+        <span class="stars">${stars}</span>
+        <span class="meta"><b>${x.size}×${x.size} ${META[x.diff]||x.diff}</b> · 种子 ${x.seed} · ${fmt(x.time||0)} · 提示 ${x.hints||0} 次${x.date?' · '+fmtDate(x.date):''}</span>
+        <button data-seed="${x.seed}" data-size="${x.size}" data-diff="${x.diff}" class="hist-replay">重玩</button>
+      </div>`;
+    }
+  }
+  html+=`</div>`;
+  html+=`<div style="margin-top:14px;display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+    <button id="histExportBtn" title="把成绩存成 JSON 文件，可跨浏览器/设备保存">⬇ 导出记录</button>
+    <button id="histImportBtn" title="从 JSON 文件恢复成绩">⬆ 导入记录</button>
+    ${total?`<button id="histClearBtn" title="清空所有成绩">🗑 清空记录</button>`:''}
+  </div>
+  <div style="font-size:12px;color:var(--muted);margin-top:8px">
+    成绩保存在当前浏览器中。导出成文件后可在其他浏览器/设备导入，不怕清理缓存。
+  </div>`;
+  html+=`</div>`;
+  area.innerHTML=html;
+  $('histCloseBtn').onclick=()=>{ area.style.display=''; area.innerHTML=''; };
+  area.querySelectorAll('.hist-replay').forEach(btn=>{
+    btn.onclick=()=>{
+      const size=+btn.dataset.size, diff=btn.dataset.diff, seed=+btn.dataset.seed;
+      area.style.display=''; area.innerHTML='';
+      newPuzzle(size,diff,seed);
+    };
+  });
+  if($('histClearBtn')) $('histClearBtn').onclick=()=>{
+    if(confirm('确定清空所有通关记录？此操作不可撤销。')){
+      try{ localStorage.removeItem(RECKEY); }catch(e){}
+      renderHistory(); updateBest();
+    }
+  };
+  $('histExportBtn').onclick=exportRecords;
+  $('histImportBtn').onclick=()=>$('importFile').click();
+}
+function exportRecords(){
+  const data={app:'bridges-hashi',version:1,exportedAt:new Date().toISOString(),records:records()};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download=`bridges-records-${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  flash('记录已导出为 JSON 文件。','ok');
+}
+function importRecords(file){
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=()=>{
+    try{
+      const data=JSON.parse(reader.result);
+      const incoming=data.records || data; // accept both wrapped and raw formats
+      if(!incoming || typeof incoming!=='object' || Array.isArray(incoming)) throw new Error('bad format');
+      const all=records();
+      let added=0, updated=0;
+      for(const [k,v] of Object.entries(incoming)){
+        if(!v || typeof v.stars!=='number') continue;
+        if(!all[k]){ all[k]=v; added++; }
+        else{
+          // keep the better result: higher stars, or equal stars with faster time
+          if(v.stars>all[k].stars || (v.stars===all[k].stars && v.time<all[k].time)){ all[k]=v; updated++; }
+        }
+      }
+      try{ localStorage.setItem(RECKEY,JSON.stringify(all)); }catch(e){}
+      renderHistory(); updateBest();
+      flash(`导入完成：新增 ${added} 条，更新 ${updated} 条。`,'ok');
+    }catch(e){
+      flash('导入失败：文件不是有效的记录 JSON。');
+    }
+  };
+  reader.readAsText(file);
+}
+function saveRecord(){
+  const stars=starsFor(elapsed,hintsUsed,puzzle.size,puzzle.difficulty);
+  const k=recKey(puzzle.size,puzzle.difficulty,puzzle.seed);
+  const all=records();
+  const prev=all[k];
+  if(!prev || stars>prev.stars || (stars===prev.stars && elapsed<prev.time)){
+    all[k]={stars,time:elapsed,hints:hintsUsed,date:Date.now()};
+    try{ localStorage.setItem(RECKEY,JSON.stringify(all)); }catch(e){}
+  }
+  return stars;
+}
+
+function svgEl(tag,attrs,parent){
+  const e=document.createElementNS(NS,tag);
+  for(const k in attrs) e.setAttribute(k,attrs[k]);
+  if(parent) parent.appendChild(e);
+  return e;
+}
+function pt(col,row){ return {x:col+0.5,y:row+0.5}; }
+function islandPos(i){ const a=puzzle.islands[i]; return pt(a.c,a.r); }
+function edgeBetween(i,j){ return puzzle.edges.findIndex(e=>(e.a===i&&e.b===j)||(e.a===j&&e.b===i)); }
+function incidentEdges(i){ return puzzle.edges.map((e,k)=>(e.a===i||e.b===i)?k:-1).filter(k=>k>=0); }
+function degrees(){
+  const d=new Array(puzzle.islands.length).fill(0);
+  puzzle.edges.forEach((e,k)=>{ d[e.a]+=bridges[k]; d[e.b]+=bridges[k]; });
+  return d;
+}
+function connected(){
+  const n=puzzle.islands.length, parent=[...Array(n).keys()];
+  function find(x){while(parent[x]!==x){parent[x]=parent[parent[x]];x=parent[x];}return x;}
+  puzzle.edges.forEach((e,k)=>{ if(bridges[k]>0){const a=find(e.a),b=find(e.b);if(a!==b)parent[a]=b;} });
+  const r=find(0);
+  for(let i=1;i<n;i++) if(find(i)!==r) return false;
+  return true;
+}
+function isSolvedState(){
+  const d=degrees();
+  return d.every((v,i)=>v===puzzle.numbers[i]) && connected();
+}
+
+function render(){
+  if(!puzzle) return;
+  svg.setAttribute('viewBox',`0 0 ${puzzle.size} ${puzzle.size}`);
+  while(svg.firstChild) svg.removeChild(svg.firstChild);
+  const size=puzzle.size;
+  const grid=svgEl('g',{},svg);
+  for(let i=0;i<=size;i++){
+    svgEl('line',{x1:i,y1:0,x2:i,y2:size,stroke:'#eceff3','stroke-width':0.012},grid);
+    svgEl('line',{x1:0,y1:i,x2:size,y2:i,stroke:'#eceff3','stroke-width':0.012},grid);
+  }
+  const d=degrees();
+  const bg=svgEl('g',{},svg);
+  puzzle.edges.forEach((e,k)=>{
+    if(bridges[k]<=0) return;
+    const A=islandPos(e.a), B=islandPos(e.b);
+    const dx=B.x-A.x, dy=B.y-A.y, len=Math.hypot(dx,dy);
+    const ux=dx/len, uy=dy/len, px=-uy, py=ux;
+    const gap=0.36;
+    const x1=A.x+ux*gap, y1=A.y+uy*gap, x2=B.x-ux*gap, y2=B.y-uy*gap;
+    const over = showErrors && (d[e.a]>puzzle.numbers[e.a] || d[e.b]>puzzle.numbers[e.b]);
+    const color = over ? '#e5484d' : '#374151';
+    const off=0.075, w=0.055;
+    const cls=animEdges.has(k)?'bridge-pop':'';
+    if(bridges[k]===1){
+      svgEl('line',{x1,y1,x2,y2,stroke:color,'stroke-width':w,'stroke-linecap':'round',class:cls},bg);
+    }else{
+      svgEl('line',{x1:x1+px*off,y1:y1+py*off,x2:x2+px*off,y2:y2+py*off,stroke:color,'stroke-width':w,'stroke-linecap':'round',class:cls},bg);
+      svgEl('line',{x1:x1-px*off,y1:y1-py*off,x2:x2-px*off,y2:y2-py*off,stroke:color,'stroke-width':w,'stroke-linecap':'round',class:cls},bg);
+    }
+  });
+  const fg=svgEl('g',{},svg);
+  puzzle.islands.forEach((isl,i)=>{
+    const p=islandPos(i);
+    const cur=d[i];
+    let fill='#ffffff', stroke='#1f2937', sw=0.05;
+    if(cur===puzzle.numbers[i]){ fill='#c7ccd4'; stroke='#6b7280'; }
+    if(showErrors && cur>puzzle.numbers[i]){ fill='#fde4e4'; stroke='#e5484d'; }
+    if(keyboardMode && i===cursor) svgEl('circle',{cx:p.x,cy:p.y,r:0.42,fill:'none',stroke:'#2563eb','stroke-width':0.035,'stroke-dasharray':'0.08 0.06'},fg);
+    svgEl('circle',{cx:p.x,cy:p.y,r:0.33,fill,stroke,'stroke-width':sw,class:animIslands.has(i)?'island-pop':''},fg);
+    const t=svgEl('text',{x:p.x,y:p.y,'text-anchor':'middle','dominant-baseline':'central','font-size':'0.42','font-weight':700,fill:'#111827','font-family':'system-ui,sans-serif'},fg);
+    t.textContent=puzzle.numbers[i];
+  });
+  if(drag){
+    const A=islandPos(drag.start);
+    svgEl('line',{x1:A.x,y1:A.y,x2:drag.x,y2:drag.y,stroke:'#2563eb','stroke-width':0.06,'stroke-linecap':'round',opacity:0.5},svg);
+  }
+  // Clear one-shot animation cues after the frame has been painted.
+  if(animEdges.size||animIslands.size){
+    setTimeout(()=>{ animEdges.clear(); animIslands.clear(); },380);
+  }
+}
+
+function snapshot(){ return {b:bridges.slice(),cheated:cheated}; }
+function restore(s){ bridges=s.b.slice(); cheated=!!s.cheated; }
+function pushHistory(){
+  history.push(snapshot());
+  if(history.length>200) history.shift();
+  redo.length=0;
+  updateButtons();
+}
+function updateButtons(){
+  $('undoBtn').disabled=history.length===0;
+  $('redoBtn').disabled=redo.length===0;
+}
+function flash(msg,type='err'){
+  const el=$('msg');
+  el.className='msg show '+type;
+  el.textContent=msg;
+  clearTimeout(messageTimer);
+  messageTimer=setTimeout(()=>{el.className='msg';},2600);
+}
+function startTimer(){
+  if(timerId || solved) return;
+  startTime=Date.now()-elapsed;
+  timerId=setInterval(()=>{
+    elapsed=Date.now()-startTime;
+    $('timeVal').textContent=fmt(elapsed);
+  },250);
+}
+// Resume counting after leaving a solved state, preserving accumulated time.
+function resumeTimer(){
+  if(solved || timerId) return;
+  startTime=Date.now()-elapsed;
+  timerId=setInterval(()=>{
+    elapsed=Date.now()-startTime;
+    $('timeVal').textContent=fmt(elapsed);
+  },250);
+}
+function fmt(ms){
+  const s=Math.floor(ms/1000);
+  return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+}
+// Stop the clock and lock in the elapsed value.
+function stopTimer(){
+  if(timerId){ elapsed=Date.now()-startTime; clearInterval(timerId); timerId=null; }
+}
+
+function applyBridge(ei,erase){
+  if(solved) return;
+  const e=puzzle.edges[ei];
+  const cur=bridges[ei];
+  let next;
+  if(erase) next=0;
+  else{
+    next=(cur+1)%3;
+    if(next>0){
+      for(const c of e.cross) if(bridges[c]>0){ SFX.error(); flash('这里不能架桥：会与已有的桥交叉。'); return; }
+    }
+  }
+  if(next===cur) return;
+  const dBefore=degrees();
+  pushHistory();
+  bridges[ei]=next;
+  animEdges.add(ei);
+  const dAfter=degrees();
+  // newly completed islands get a gentle pop + chime
+  [e.a,e.b].forEach(v=>{
+    if(dBefore[v]!==puzzle.numbers[v] && dAfter[v]===puzzle.numbers[v]) animIslands.add(v);
+  });
+  if(next===0) SFX.erase(); else if(next===2) SFX.double(); else SFX.bridge();
+  if(animIslands.size) SFX.complete();
+  startTimer();
+  afterChange();
+}
+function afterChange(){
+  render(); saveState();
+  if(isSolvedState()) win();
+}
+function win(){
+  if(solved) return;
+  solved=true; stopTimer();
+  const b=$('banner');
+  b.classList.remove('hidden');
+  b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop');
+  if(cheated){
+    b.textContent=`🔓 已解密答案 · 本次不计入成绩`;
+    SFX.win();
+    flash('答案已显示（作弊局不记录成绩）。','ok');
+    return;
+  }
+  b.style.background=''; b.style.borderColor=''; b.style.color='';
+  const stars=saveRecord();
+  const starStr='★'.repeat(stars)+'☆'.repeat(3-stars);
+  b.innerHTML=`🎉 解开了！ <span class="star">${starStr}</span> · 用时 ${fmt(elapsed)} · 提示 ${hintsUsed} 次`;
+  SFX.win();
+  flash('恭喜通关！','ok');
+  updateBest();
+}
+// dir: 'up'|'down'|'left'|'right' — pick the neighbour on that exact side
+function addFromIsland(islIdx,dir,erase){
+  const cur=puzzle.islands[islIdx];
+  let best=-1,bestDist=Infinity;
+  puzzle.edges.forEach((e,k)=>{
+    if(e.a!==islIdx&&e.b!==islIdx) return;
+    const other=islandPos(e.a===islIdx?e.b:e.a);
+    // islandPos returns cell centre (c+0.5, r+0.5)
+    const dy=other.y-(cur.r+0.5), dx=other.x-(cur.c+0.5);
+    let ok=false, dist=0;
+    if(dir==='up'){ ok=dy<0 && Math.abs(dx)<0.01; dist=-dy; }
+    else if(dir==='down'){ ok=dy>0 && Math.abs(dx)<0.01; dist=dy; }
+    else if(dir==='left'){ ok=dx<0 && Math.abs(dy)<0.01; dist=-dx; }
+    else if(dir==='right'){ ok=dx>0 && Math.abs(dy)<0.01; dist=dx; }
+    if(ok && dist<bestDist){ bestDist=dist; best=k; }
+  });
+  if(best<0){ flash('那个方向没有可连接的岛屿。'); return; }
+  applyBridge(best,erase);
+}
+function clearIsland(i){
+  if(solved) return;
+  const inc=incidentEdges(i);
+  if(inc.every(k=>bridges[k]===0)) return;
+  pushHistory();
+  inc.forEach(k=>{ bridges[k]=0; });
+  SFX.erase();
+  startTimer(); afterChange();
+}
+function hint(){
+  if(solved) return;
+  const idx=bridges.findIndex((v,k)=>v!==puzzle.solution[k]);
+  if(idx<0){ flash('当前已与一个正确解一致；若未完成，请检查连通性。','ok'); return; }
+  pushHistory();
+  bridges[idx]=puzzle.solution[idx];
+  animEdges.add(idx);
+  SFX.bridge();
+  hintsUsed++; $('hintVal').textContent=hintsUsed;
+  startTimer(); afterChange();
+  flash('已填入一座桥的提示。','ok');
+}
+function solveCheat(){
+  if(!puzzle || solved) return;
+  pushHistory();
+  cheated=true;
+  for(let k=0;k<puzzle.edges.length;k++) if(bridges[k]!==puzzle.solution[k]) animEdges.add(k);
+  bridges=puzzle.solution.slice();
+  const b=$('banner');
+  b.classList.remove('hidden');
+  b.innerHTML='🔓 神秘代码生效……答案已揭晓（作弊局，不计成绩）';
+  b.style.background='#fef3c7'; b.style.borderColor='#fcd34d'; b.style.color='#92400e';
+  SFX.win();
+  afterChange(); // reaches win(), which detects cheated and skips record saving
+}
+function check(){
+  if(solved){ flash('已经完成啦！','ok'); return; }
+  const d=degrees();
+  const over=d.findIndex((v,i)=>v>puzzle.numbers[i]);
+  if(over>=0){ flash(`第 ${over+1} 座岛的桥数（${d[over]}）超过了它的数字 ${puzzle.numbers[over]}。`); return; }
+  const wrong=d.findIndex((v,i)=>v<puzzle.numbers[i]);
+  if(wrong>=0){ flash(`还有岛屿未连满：例如第 ${wrong+1} 座岛需要 ${puzzle.numbers[wrong]} 条，目前 ${d[wrong]} 条。`); return; }
+  if(!connected()){ flash('每座岛的桥数都对了，但还有岛屿没有连成一个整体。'); return; }
+  flash('全部规则都满足！','ok');
+}
+function undo(){
+  if(!history.length) return;
+  const wasSolved=solved;
+  redo.push(snapshot());
+  restore(history.pop());
+  solved=false; $('banner').classList.add('hidden');
+  if(wasSolved) resumeTimer();
+  SFX.erase();
+  updateButtons(); render(); saveState();
+}
+function redoAct(){
+  if(!redo.length) return;
+  history.push(snapshot());
+  restore(redo.pop());
+  updateButtons(); render(); saveState();
+  if(isSolvedState() && !solved) win();
+  else SFX.bridge();
+}
+function restart(){
+  if(bridges.every(v=>v===0)) return;
+  const wasSolved=solved;
+  pushHistory();
+  bridges=new Array(puzzle.edges.length).fill(0);
+  solved=false; $('banner').classList.add('hidden');
+  if(wasSolved) resumeTimer();
+  SFX.erase();
+  afterChange();
+}
+let genWorker=null, genToken=0;
+function buildWorkerSource(){
+  const fns=[mulberry32,shuffled,buildLayout,computeEdges,computeDegrees,
+             randomSolution,needOf,countSolutions,countSolutionsBudget,generatePuzzle];
+  let src='const CONFIG='+JSON.stringify(CONFIG)+';\n';
+  for(const f of fns) src+=f.toString()+'\n';
+  src+='self.onmessage=function(e){var d=e.data;var p=generatePuzzle(d.size,d.difficulty,d.seed);self.postMessage(p);};\n';
+  return src;
+}
+function installPuzzle(p,size,difficulty,seed,restoreState){
+  puzzle=p; bridges=new Array(p.edges.length).fill(0);
+  history=[]; redo=[]; cursor=0; cheated=false; animEdges.clear(); animIslands.clear();
+  updateButtons();
+  $('sizeSel').value=size; $('diffSel').value=difficulty; $('seedIn').value=seed>>>0;
+  // Restore real progress before the first save, otherwise the fresh empty
+  // board would overwrite the saved one.
+  if(restoreState && Array.isArray(restoreState.bridges) && restoreState.bridges.length===bridges.length){
+    bridges=restoreState.bridges.slice();
+    hintsUsed=restoreState.hintsUsed||0;
+    elapsed=restoreState.elapsed||0;
+    cheated=!!restoreState.cheated;
+    $('hintVal').textContent=hintsUsed;
+    $('timeVal').textContent=fmt(elapsed);
+  }
+  render(); saveState(); updateURL(); updateBest();
+}
+function newPuzzle(size,difficulty,seed,restoreState){
+  stopTimer(); elapsed=0; startTime=0; hintsUsed=0; solved=false; cheated=false;
+  $('timeVal').textContent='0:00'; $('hintVal').textContent='0';
+  const banner=$('banner');
+  banner.classList.add('hidden');
+  banner.style.background=''; banner.style.borderColor=''; banner.style.color='';
+  const btn=$('newBtn'); btn.disabled=true; btn.textContent='生成中…';
+  const token=++genToken;
+  size=+size; seed=seed>>>0;
+  const finish=p=>{
+    if(token!==genToken) return;
+    btn.disabled=false; btn.textContent='新谜题';
+    if(!p){ flash('生成失败，请换一个种子再试。'); return; }
+    installPuzzle(p,size,difficulty,seed,restoreState);
+  };
+  // Prefer a Web Worker so heavy generation never freezes the UI.
+  try{
+    if(genWorker) genWorker.terminate();
+    const src=buildWorkerSource();
+    const url=URL.createObjectURL(new Blob([src],{type:'application/javascript'}));
+    const w=new Worker(url);
+    genWorker=w;
+    w.onmessage=e=>{ URL.revokeObjectURL(url); finish(e.data); };
+    w.onerror=()=>{ URL.revokeObjectURL(url); genWorker=null; finish(generatePuzzle(size,difficulty,seed)); };
+    w.postMessage({size,difficulty,seed});
+  }catch(e){
+    setTimeout(()=>finish(generatePuzzle(size,difficulty,seed)),20);
+  }
+}
+function saveState(){
+  if(!puzzle) return;
+  try{ localStorage.setItem('bridges-state',JSON.stringify({size:puzzle.size,d:puzzle.difficulty,seed:puzzle.seed,bridges,hintsUsed,elapsed,cheated})); }catch(e){}
+}
+function loadState(){
+  let s=null;
+  try{ s=JSON.parse(localStorage.getItem('bridges-state')||'null'); }catch(e){}
+  const q=new URLSearchParams(location.search);
+  const urlSeed=q.get('seed');
+  const size=+(q.get('size')|| (s&&s.size) || 9);
+  const diff=q.get('d')||q.get('difficulty')|| (s&&s.d) || 'medium';
+  let seed=+(urlSeed || (s&&s.seed) || 0);
+  if(!(seed>0)) seed=Math.floor(Math.random()*2147483647);
+  if([7,9,11,13,15].indexOf(size)<0) size=9;
+  // A save is restorable when it is the same puzzle we are about to load.
+  // A shared link with a different seed means "open that puzzle fresh".
+  const samePuzzle=s && s.size===size && s.d===diff && +s.seed===(+seed>>>0);
+  const explicitDifferentSeed=urlSeed && +urlSeed!==(s&&+s.seed);
+  return {size,diff,seed,saved:(samePuzzle && !explicitDifferentSeed)?s:null};
+}
+function updateURL(){
+  const u=new URL(location.href);
+  u.searchParams.set('size',puzzle.size);
+  u.searchParams.set('d',puzzle.difficulty);
+  u.searchParams.set('seed',puzzle.seed);
+  // window.history — our own `history` array shadows the global one.
+  try{ window.history.replaceState(null,'',u.toString()); }catch(e){}
+}
+function makeSVG(withNumbers){
+  const size=puzzle.size;
+  const parts=[`<svg xmlns="${NS}" viewBox="0 0 ${size} ${size}" width="520" height="520">`];
+  for(let i=0;i<=size;i++){
+    parts.push(`<line x1="${i}" y1="0" x2="${i}" y2="${size}" stroke="#eceff3" stroke-width="0.012"/>`);
+    parts.push(`<line x1="0" y1="${i}" x2="${size}" y2="${i}" stroke="#eceff3" stroke-width="0.012"/>`);
+  }
+  const w=withNumbers?puzzle.solution:bridges;
+  puzzle.edges.forEach((e,k)=>{
+    if(!w[k]) return;
+    const A=islandPos(e.a),B=islandPos(e.b);
+    const dx=B.x-A.x,dy=B.y-A.y,len=Math.hypot(dx,dy),ux=dx/len,uy=dy/len,px=-uy,py=ux,gap=0.36,off=0.075,sw=0.055;
+    const x1=A.x+ux*gap,y1=A.y+uy*gap,x2=B.x-ux*gap,y2=B.y-uy*gap;
+    if(w[k]===1) parts.push(`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#374151" stroke-width="${sw}" stroke-linecap="round"/>`);
+    else{
+      parts.push(`<line x1="${x1+px*off}" y1="${y1+py*off}" x2="${x2+px*off}" y2="${y2+py*off}" stroke="#374151" stroke-width="${sw}" stroke-linecap="round"/>`);
+      parts.push(`<line x1="${x1-px*off}" y1="${y1-py*off}" x2="${x2-px*off}" y2="${y2-py*off}" stroke="#374151" stroke-width="${sw}" stroke-linecap="round"/>`);
+    }
+  });
+  puzzle.islands.forEach((isl,i)=>{
+    const p=islandPos(i);
+    parts.push(`<circle cx="${p.x}" cy="${p.y}" r="0.33" fill="#fff" stroke="#1f2937" stroke-width="0.05"/>`);
+    parts.push(`<text x="${p.x}" y="${p.y}" text-anchor="middle" dominant-baseline="central" font-size="0.42" font-weight="700" fill="#111827">${puzzle.numbers[i]}</text>`);
+  });
+  parts.push('</svg>');
+  return parts.join('');
+}
+function doPrint(){
+  const withAnswer=$('printAnswer')?.checked;
+  const area=$('printArea');
+  area.style.display='block';
+  area.innerHTML=`<h2>架桥谜题 · Bridges</h2>
+    <p>尺寸 ${puzzle.size}×${puzzle.size} · 难度 ${META[puzzle.difficulty]} · 种子 ${puzzle.seed}</p>
+    ${makeSVG(false)}
+    ${withAnswer?`<div class="pagebreak"></div><h2>答案</h2>${makeSVG(true)}`:''}
+    <p style="font-size:12px;color:#666;margin-top:10px">规则：连接岛屿使每岛桥数等于数字；每对岛屿最多两座桥；桥不可交叉；所有岛须连成一体。</p>
+    <label style="display:none"><input type="checkbox" id="printAnswer"></label>`;
+  window.print();
+  setTimeout(()=>{ area.innerHTML=''; area.style.display=''; },1500);
+}
+function showPrintDialog(){
+  const area=$('printArea');
+  area.style.display='block';
+  area.innerHTML=`<div class="card" style="padding:16px;margin-top:16px">
+    <h3 style="margin-top:0">打印选项</h3>
+    <label class="toggle"><input type="checkbox" id="printAnswer"> 同时打印答案页</label>
+    <div style="margin-top:10px"><button id="doPrintBtn" class="primary">打印 / 另存为 PDF</button>
+    <button id="cancelPrintBtn">取消</button></div></div>`;
+  $('doPrintBtn').onclick=doPrint;
+  $('cancelPrintBtn').onclick=()=>{ area.innerHTML=''; area.style.display=''; };
+}
+
+/* Pointer interaction */
+function svgPoint(e){
+  const r=svg.getBoundingClientRect();
+  return {x:(e.clientX-r.left)/r.width*puzzle.size, y:(e.clientY-r.top)/r.height*puzzle.size};
+}
+function islandAt(p,rad=0.36){
+  let best=-1,bd=rad*rad;
+  puzzle.islands.forEach((isl,i)=>{
+    const q=islandPos(i),dx=q.x-p.x,dy=q.y-p.y,d2=dx*dx+dy*dy;
+    if(d2<bd){bd=d2;best=i;}
+  });
+  return best;
+}
+function distToEdge(p,e){
+  const A=islandPos(e.a),B=islandPos(e.b);
+  const dx=B.x-A.x,dy=B.y-A.y,L2=dx*dx+dy*dy;
+  let t=((p.x-A.x)*dx+(p.y-A.y)*dy)/L2;
+  t=Math.max(0,Math.min(1,t));
+  return Math.hypot(p.x-(A.x+t*dx), p.y-(A.y+t*dy));
+}
+function edgeAt(p,tol=0.14){
+  let best=-1,bd=tol;
+  puzzle.edges.forEach((e,k)=>{
+    if(bridges[k]<=0) return;
+    const dist=distToEdge(p,e);
+    if(dist<bd){bd=dist;best=k;}
+  });
+  return best;
+}
+svg.addEventListener('pointerdown',e=>{
+  if(!puzzle||solved) return;
+  if(e.button!==0) return; // right-click is handled by contextmenu only
+  e.preventDefault();
+  const p=svgPoint(e);
+  const isl=islandAt(p);
+  if(isl>=0){
+    cursor=isl; drag={start:isl,x:p.x,y:p.y,moved:false,id:e.pointerId};
+    try{svg.setPointerCapture(e.pointerId);}catch(_){}
+    render();
+  }else{
+    const k=edgeAt(p); // existing bridge
+    if(k>=0){ applyBridge(k, mode==='erase'); return; }
+  }
+});
+svg.addEventListener('pointermove',e=>{
+  if(!drag||e.pointerId!==drag.id) return;
+  const p=svgPoint(e);
+  drag.x=p.x; drag.y=p.y;
+  const A=islandPos(drag.start);
+  if(Math.hypot(p.x-A.x,p.y-A.y)>0.35) drag.moved=true;
+  render();
+});
+svg.addEventListener('pointerup',e=>{
+  if(!drag||e.pointerId!==drag.id) return;
+  const d=drag; drag=null;
+  const A=islandPos(d.start);
+  const dx=d.x-A.x, dy=d.y-A.y;
+  if(d.moved && Math.hypot(dx,dy)>0.3){
+    const dir=Math.abs(dx)>Math.abs(dy)?'h':'v';
+    const sign=dir==='h'?Math.sign(dx):Math.sign(dy);
+    const e=puzzle.edges.find(e=>{
+      if(e.a!==d.start&&e.b!==d.start) return false;
+      if(e.dir!==dir) return false;
+      const other=e.a===d.start?e.b:e.a;
+      const op=islandPos(other);
+      return dir==='h'?Math.sign(op.x-A.x)===sign:Math.sign(op.y-A.y)===sign;
+    });
+    if(!e){ flash('那个方向没有可连接的岛屿。'); }
+    else applyBridge(puzzle.edges.indexOf(e),mode==='erase');
+  }
+  render();
+});
+svg.addEventListener('pointercancel',()=>{drag=null;render();});
+svg.addEventListener('contextmenu',e=>{
+  e.preventDefault();
+  if(!puzzle||solved) return;
+  const p=svgPoint(e);
+  // Right-click erases a single bridge (no more wiping a whole island).
+  const k=edgeAt(p,0.2);
+  if(k>=0){ applyBridge(k,true); return; }
+});
+
+/* Buttons */
+function setMode(m){
+  mode=m;
+  ['bridgeChip','eraseChip'].forEach(id=>$(id).classList.remove('active'));
+  $({bridge:'bridgeChip',erase:'eraseChip'}[m]).classList.add('active');
+}
+$('bridgeChip').onclick=()=>setMode('bridge');
+$('eraseChip').onclick=()=>setMode('erase');
+// “新谜题” = 全新随机种子；清空输入框以免误以为填的种子生效。
+$('newBtn').onclick=()=>{
+  $('seedIn').value='';
+  newPuzzle($('sizeSel').value,$('diffSel').value,Math.floor(Math.random()*2147483647));
+};
+// “用此种子生成” = 真正使用输入框里的种子。
+$('useSeedBtn').onclick=()=>{
+  const raw=$('seedIn').value.trim();
+  if(raw===''){ flash('请先输入一个种子数字（0 ~ 4294967295）。'); return; }
+  let seed=Number(raw);
+  if(!Number.isFinite(seed) || seed<0){ flash('种子必须是 0 ~ 4294967295 的整数。'); return; }
+  seed=Math.floor(seed)>>>0;
+  $('seedIn').value=seed;
+  newPuzzle($('sizeSel').value,$('diffSel').value,seed);
+};
+// 回车也可按当前种子生成
+$('seedIn').addEventListener('keydown',e=>{ if(e.key==='Enter') $('useSeedBtn').click(); });
+$('dailyBtn').onclick=()=>{
+  $('sizeSel').value=9; $('diffSel').value='medium';
+  newPuzzle(9,'medium',dailySeed());
+  flash('每日挑战：今天的题目，所有玩家相同。','ok');
+};
+$('undoBtn').onclick=undo;
+$('redoBtn').onclick=redoAct;
+$('hintBtn').onclick=hint;
+$('checkBtn').onclick=check;
+$('historyBtn').onclick=showHistory;
+$('importFile').onchange=e=>{ importRecords(e.target.files[0]); e.target.value=''; };
+$('restartBtn').onclick=restart;
+$('errChk').onchange=e=>{showErrors=e.target.checked;render();};
+$('keyChk').onchange=e=>{keyboardMode=e.target.checked;render();};
+$('soundChk').onchange=e=>{soundOn=e.target.checked; if(soundOn) SFX.bridge();};
+$('copyBtn').onclick=async()=>{
+  // 本地单文件没有公网地址，URL 复制出去别人也打不开。
+  // 真正能还原这道题的是「尺寸 + 难度 + 种子」。
+  const text=`架桥谜题  尺寸:${puzzle.size}×${puzzle.size}  难度:${META[puzzle.difficulty]}  种子:${puzzle.seed}`;
+  let ok=false;
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    try{ await navigator.clipboard.writeText(text); ok=true; }catch(e){}
+  }
+  if(!ok){
+    try{
+      const ta=document.createElement('textarea');
+      ta.value=text; ta.setAttribute('readonly','');
+      ta.style.position='fixed'; ta.style.top='-9999px'; ta.style.opacity='0';
+      document.body.appendChild(ta);
+      ta.focus(); ta.select(); ta.setSelectionRange(0,ta.value.length);
+      ok=document.execCommand('copy');
+      document.body.removeChild(ta);
+    }catch(e){ ok=false; }
+  }
+  if(ok){
+    flash('题目信息已复制：把三个数值发给朋友，即可用「用此种子生成」还原本题。','ok');
+  }else{
+    try{ prompt('浏览器阻止了自动复制，请手动复制：', text); }
+    catch(e){ flash('复制失败，信息为：'+text); }
+  }
+};
+$('printBtn').onclick=showPrintDialog;
+document.addEventListener('keydown',e=>{
+  if(!puzzle) return;
+  const tag=(e.target.tagName||'').toLowerCase();
+  if(tag==='select'||tag==='input'||tag==='textarea') return;
+  // 隐藏作弊码：无视键盘模式开关，单字母按键即可触发。
+  if(!e.ctrlKey && !e.metaKey && !e.altKey && e.key && e.key.length===1){
+    cheatBuf=(cheatBuf+e.key.toLowerCase()).slice(-CHEAT_CODE.length);
+    if(cheatBuf===CHEAT_CODE){ cheatBuf=''; solveCheat(); return; }
+  }
+  // Undo/redo work regardless of keyboard mode, even right after solving.
+  if((e.ctrlKey||e.metaKey) && !e.altKey){
+    const k=e.key.toLowerCase();
+    if(k==='z' && !e.shiftKey){ e.preventDefault(); undo(); return; }
+    if((k==='z'&&e.shiftKey)||k==='y'){ e.preventDefault(); redoAct(); return; }
+  }
+  // 其余快捷键仅在勾选“启用键盘操作”且未通关时接管，且不拦截浏览器组合键。
+  if(solved||!keyboardMode) return;
+  if(e.ctrlKey||e.metaKey||e.altKey) return;
+  const moves={'ArrowUp':[-1,0],'ArrowDown':[1,0],'ArrowLeft':[0,-1],'ArrowRight':[0,1]};
+  if(moves[e.key]){
+    e.preventDefault();
+    const [dr,dc]=moves[e.key];
+    const cur=puzzle.islands[cursor];
+    let best=-1,bd=Infinity;
+    puzzle.islands.forEach((isl,i)=>{
+      const ddr=isl.r-cur.r, ddc=isl.c-cur.c;
+      const along=dr?ddr*dr:ddc*dc, across=dr?Math.abs(ddc):Math.abs(ddr);
+      if(along>0 && (across<bd)){bd=across;best=i;}
+    });
+    if(best>=0){cursor=best;render();}
+  }else if(e.key==='w'||e.key==='W'){e.preventDefault();addFromIsland(cursor,'up',mode==='erase');}
+  else if(e.key==='s'||e.key==='S'){e.preventDefault();addFromIsland(cursor,'down',mode==='erase');}
+  else if(e.key==='a'||e.key==='A'){e.preventDefault();addFromIsland(cursor,'left',mode==='erase');}
+  else if(e.key==='d'||e.key==='D'){e.preventDefault();addFromIsland(cursor,'right',mode==='erase');}
+  else if(e.key==='Backspace'){e.preventDefault();clearIsland(cursor);}
+});
+
+/* Boot */
+(function boot(){
+  const st=loadState();
+  $('sizeSel').value=st.size; $('diffSel').value=st.diff; $('seedIn').value=st.seed;
+  if(st.saved){
+    const cb=confirm('检测到上次未完成的进度，是否继续？');
+    // Pass the save into generation so it is applied inside the finish callback,
+    // avoiding both the timing race and the empty-board overwrite.
+    newPuzzle(st.size,st.diff,st.seed,cb?st.saved:null);
+  }else{
+    newPuzzle(st.size,st.diff,st.seed);
+  }
+})();
+</script>
+</body>
+</html>
